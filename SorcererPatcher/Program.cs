@@ -56,6 +56,21 @@ namespace SorcererPatcher
                     costliestEffectLevel = record.MinimumSkillLevel;
                 }
 
+                var patched = state.PatchMod.Scrolls.GetOrAddAsOverride(scroll.Record);
+                var prevValue = patched.Value;
+                patched.Value = costliestEffectLevel switch
+                {
+                    < 25 => 15,
+                    >= 25 and < 50 => 30,
+                    >= 50 and < 75 => 55,
+                    >= 75 and < 100 => 100,
+                    >= 100 => 160
+                };
+
+                // Removed unchanged records
+                if (patched.Value == prevValue)
+                    state.PatchMod.Remove(scroll.Record);
+
                 var recipes = new List<(int, int, ushort)> // (scroll paper, enchanted ink, # of scrolls created)
                 {
                     (2, 8, 2), // Master
