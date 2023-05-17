@@ -26,6 +26,7 @@ namespace SorcererPatcher
             var scrollWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_TableScrollEnchanter").ToNullableLink();
             var staffWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_TableStaffEnchanter").ToNullableLink();
             var vanillaStaffWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("DLC2StaffEnchanter").ToNullableLink();
+            var scrollResearchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollResearchNotes").ToNullableLink();
             var soulGemCommon = state.LinkCache.Resolve<ISoulGemGetter>("SoulGemCommonFilled").ToLink();
             var soulGemGreater = state.LinkCache.Resolve<ISoulGemGetter>("SoulGemGreaterFilled").ToLink();
             var soulGemGrand = state.LinkCache.Resolve<ISoulGemGetter>("SoulGemGrandFilled").ToLink();
@@ -117,7 +118,7 @@ namespace SorcererPatcher
                 };
                 book.Keywords = new ExtendedList<IFormLinkGetter<IKeywordGetter>>()
                 {
-                    state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollResearchNotes")
+                    scrollResearchKywd
                 };
                 book.InventoryArt = inventoryArt;
                 book.Model = new Model
@@ -234,11 +235,11 @@ namespace SorcererPatcher
                 var edid = staffRecipe.Record.EditorID!;
                 if (edid.Contains("MAG_") || !staffRecipe.Record.WorkbenchKeyword.Equals(vanillaStaffWorkbenchKywd)) continue;
 
-                var newRecipe = state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(staffRecipe.Record);
-
                 if (state.LinkCache.TryResolve<IWeaponGetter>(staffRecipe.Record.CreatedObject.FormKey, out var staff))
                 {
                     Console.WriteLine($"Processing staff: {staff.Name}");
+
+                    var newRecipe = state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(staffRecipe.Record);
 
                     newRecipe.EditorID += "Alt";
                     newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
