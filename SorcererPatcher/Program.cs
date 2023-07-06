@@ -44,7 +44,10 @@ namespace SorcererPatcher
                 throw new Exception("ERROR: MysticismMagic.esp not found in load order");
 
             if (_settings.Value.PatchSingleMod != "")
+            {
+                Console.WriteLine($"Patching single mod: {_settings.Value.PatchSingleMod}");
                 _modToPatch = ModKey.FromNameAndExtension(_settings.Value.PatchSingleMod);
+            }
 
             var scrollWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_TableScrollEnchanter").ToNullableLink();
             var staffWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_TableStaffEnchanter").ToNullableLink();
@@ -88,335 +91,244 @@ namespace SorcererPatcher
 
             var scrollCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.Scroll().WinningOverrides()
-                : state.LoadOrder.TryGetValue(_modToPatch)!.Mod!.Scrolls;
+                : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.Scrolls;
 
             // Scrolls
-            foreach (var scroll in scrollCollection)
-            {
-                var sName = scroll.Name!.ToString()!;
-                var edid = scroll.EditorID!;
-
-                if (edid.Contains("MAG_") || sName.Contains("Shalidor") || sName.Contains("J'zargo") || sName.Contains("Spider")) continue;
-
-                Console.WriteLine($"Processing scroll: {scroll.Name} (0x{scroll.FormKey.ID:X})");
-
-                // Determine recipe based on minimum skill level of costliest magic effect
-                var max = 0.0f;
-                uint costliestEffectLevel = 0;
-                ActorValue costliestEffectSkill = new();
-
-                // Find minimum skill level of magic effect with the highest base cost
-                foreach (var effect in scroll.Effects)
+            if (scrollCollection != null)
+                foreach (var scroll in scrollCollection)
                 {
-                    var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
-                    if (!(record.BaseCost > max)) continue;
-                    max = record.BaseCost;
-                    costliestEffectLevel = record.MinimumSkillLevel;
-                    if (magicSkills.Contains(record.MagicSkill))
-                        costliestEffectSkill = record.MagicSkill;
-                }
+                    var sName = scroll.Name!.ToString()!;
+                    var edid = scroll.EditorID!;
 
-                // Rectify scroll value
-                var patched = state.PatchMod.Scrolls.GetOrAddAsOverride(scroll);
-                patched.Value = costliestEffectLevel switch
-                {
-                    < 25 => 15,
-                    >= 25 and < 50 => 30,
-                    >= 50 and < 75 => 55,
-                    >= 75 and < 100 => 100,
-                    >= 100 => 160
-                };
+                    if (edid.Contains("MAG_") || sName.Contains("Shalidor") || sName.Contains("J'zargo") ||
+                        sName.Contains("Spider")) continue;
 
-                patched.Keywords ??= new();
+                    Console.WriteLine($"Processing scroll: {scroll.Name} (0x{scroll.FormKey.ID:X})");
 
-                switch (costliestEffectSkill)
-                {
-                    case ActorValue.Alteration:
-                        patched.Keywords.Add(scrollAlterationKywd);
-                        break;
-                    case ActorValue.Conjuration:
-                        patched.Keywords.Add(scrollConjurationKywd);
-                        break;
-                    case ActorValue.Destruction:
-                        patched.Keywords.Add(scrollDestructionKywd);
-                        break;
-                    case ActorValue.Illusion:
-                        patched.Keywords.Add(scrollIllusionywd);
-                        break;
-                    case ActorValue.Restoration:
-                        patched.Keywords.Add(scrollRestorationKywd);
-                        break;
-                }
+                    // Determine recipe based on minimum skill level of costliest magic effect
+                    var max = 0.0f;
+                    uint costliestEffectLevel = 0;
+                    ActorValue costliestEffectSkill = new();
 
-                // Remove scroll from patch if record is unchanged
-                if (patched.Value == scroll.Value)
-                    state.PatchMod.Remove(patched);
+                    // Find minimum skill level of magic effect with the highest base cost
+                    foreach (var effect in scroll.Effects)
+                    {
+                        var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                        if (!(record.BaseCost > max)) continue;
+                        max = record.BaseCost;
+                        costliestEffectLevel = record.MinimumSkillLevel;
+                        if (magicSkills.Contains(record.MagicSkill))
+                            costliestEffectSkill = record.MagicSkill;
+                    }
 
-                var recipes = new List<(int, int, ushort)> // (scroll paper, enchanted ink, # of scrolls created)
-                {
-                    (2, 8, 2), // Master
-                    (2, 5, 2), // Expert
-                    (3, 4, 3), // Adept
-                    (4, 3, 4), // Apprentice
-                    (5, 2, 5) // Novice
-                };
+                    // Rectify scroll value
+                    var patched = state.PatchMod.Scrolls.GetOrAddAsOverride(scroll);
+                    patched.Value = costliestEffectLevel switch
+                    {
+                        < 25 => 15,
+                        >= 25 and < 50 => 30,
+                        >= 50 and < 75 => 55,
+                        >= 75 and < 100 => 100,
+                        >= 100 => 160
+                    };
 
-                var recipeToUse = costliestEffectLevel switch
-                {
-                    < 25 => recipes[4],
-                    >= 25 and < 50 => recipes[3],
-                    >= 50 and < 75 => recipes[2],
-                    >= 75 and < 100 => recipes[1],
-                    >= 100 => recipes[0]
-                };
+                    patched.Keywords ??= new();
 
-                var book = state.PatchMod.Books.AddNew();
-                var perk = state.PatchMod.Perks.AddNew();
-                var recipe = state.PatchMod.ConstructibleObjects.AddNew();
-                var breakdownRecipe = state.PatchMod.ConstructibleObjects.AddNew();
+                    switch (costliestEffectSkill)
+                    {
+                        case ActorValue.Alteration:
+                            patched.Keywords.Add(scrollAlterationKywd);
+                            break;
+                        case ActorValue.Conjuration:
+                            patched.Keywords.Add(scrollConjurationKywd);
+                            break;
+                        case ActorValue.Destruction:
+                            patched.Keywords.Add(scrollDestructionKywd);
+                            break;
+                        case ActorValue.Illusion:
+                            patched.Keywords.Add(scrollIllusionywd);
+                            break;
+                        case ActorValue.Restoration:
+                            patched.Keywords.Add(scrollRestorationKywd);
+                            break;
+                    }
 
-                var name = scroll.Name!.ToString()!.Replace("Scroll of the ", "").Replace("Scroll of ", "");
-                var nameStripped = name.Replace(" ", "");
+                    // Remove scroll from patch if record is unchanged
+                    if (patched.Value == scroll.Value)
+                        state.PatchMod.Remove(patched);
 
-                // Book logic
-                book.EditorID = "MAG_ResearchNotes" + nameStripped;
-                book.Name = "Research Notes: " + name;
-                book.Weight = 0;
-                book.Value = costliestEffectLevel switch
-                {
-                    < 25 => 100,
-                    >= 25 and < 50 => 200,
-                    >= 50 and < 75 => 300,
-                    >= 75 and < 100 => 500,
-                    >= 100 => 800
-                };
-                book.PickUpSound = pickUpSound;
-                book.BookText = book.Name;
-                book.Description = scroll.Name!.ToString()!.Contains("of the") switch
-                {
-                    true => $"Allows you to craft Scrolls of the " + name + ".",
-                    false => $"Allows you to craft Scrolls of " + name + "."
-                };
-                book.Keywords = new ExtendedList<IFormLinkGetter<IKeywordGetter>>
-                {
-                    scrollResearchKywd
-                };
-                book.InventoryArt = inventoryArt;
-                book.Model = new Model
-                {
-                    File = "Clutter\\Common\\Scroll05.nif",
-                };
-                ScriptProperty attachedBook = new ScriptObjectProperty
-                {
-                    Name = "AttachedBook",
-                    Object = book.ToNullableLink()
-                };
-                ScriptProperty craftingPerk = new ScriptObjectProperty
-                {
-                    Name = "CraftingPerk",
-                    Object = perk.ToNullableLink()
-                };
-                book.VirtualMachineAdapter = new VirtualMachineAdapter
-                {
-                    Scripts = new ExtendedList<ScriptEntry>
+                    var recipes = new List<(int, int, ushort)> // (scroll paper, enchanted ink, # of scrolls created)
+                    {
+                        (2, 8, 2), // Master
+                        (2, 5, 2), // Expert
+                        (3, 4, 3), // Adept
+                        (4, 3, 4), // Apprentice
+                        (5, 2, 5) // Novice
+                    };
+
+                    var recipeToUse = costliestEffectLevel switch
+                    {
+                        < 25 => recipes[4],
+                        >= 25 and < 50 => recipes[3],
+                        >= 50 and < 75 => recipes[2],
+                        >= 75 and < 100 => recipes[1],
+                        >= 100 => recipes[0]
+                    };
+
+                    var book = state.PatchMod.Books.AddNew();
+                    var perk = state.PatchMod.Perks.AddNew();
+                    var recipe = state.PatchMod.ConstructibleObjects.AddNew();
+                    var breakdownRecipe = state.PatchMod.ConstructibleObjects.AddNew();
+
+                    var name = scroll.Name!.ToString()!.Replace("Scroll of the ", "").Replace("Scroll of ", "");
+                    var nameStripped = name.Replace(" ", "");
+
+                    // Book logic
+                    book.EditorID = "MAG_ResearchNotes" + nameStripped;
+                    book.Name = "Research Notes: " + name;
+                    book.Weight = 0;
+                    book.Value = costliestEffectLevel switch
+                    {
+                        < 25 => 100,
+                        >= 25 and < 50 => 200,
+                        >= 50 and < 75 => 300,
+                        >= 75 and < 100 => 500,
+                        >= 100 => 800
+                    };
+                    book.PickUpSound = pickUpSound;
+                    book.BookText = book.Name;
+                    book.Description = scroll.Name!.ToString()!.Contains("of the") switch
+                    {
+                        true => $"Allows you to craft Scrolls of the " + name + ".",
+                        false => $"Allows you to craft Scrolls of " + name + "."
+                    };
+                    book.Keywords = new ExtendedList<IFormLinkGetter<IKeywordGetter>>
+                    {
+                        scrollResearchKywd
+                    };
+                    book.InventoryArt = inventoryArt;
+                    book.Model = new Model
+                    {
+                        File = "Clutter\\Common\\Scroll05.nif",
+                    };
+                    ScriptProperty attachedBook = new ScriptObjectProperty
+                    {
+                        Name = "AttachedBook",
+                        Object = book.ToNullableLink()
+                    };
+                    ScriptProperty craftingPerk = new ScriptObjectProperty
+                    {
+                        Name = "CraftingPerk",
+                        Object = perk.ToNullableLink()
+                    };
+                    book.VirtualMachineAdapter = new VirtualMachineAdapter
+                    {
+                        Scripts = new ExtendedList<ScriptEntry>
+                        {
+                            new()
+                            {
+                                Name = "MAG_ResearchItem_Script",
+                                Properties = new ExtendedList<ScriptProperty>
+                                {
+                                    attachedBook, craftingPerk
+                                }
+                            }
+                        }
+                    };
+                    Console.WriteLine($"    Generated research notes for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+
+                    // Perk logic
+                    perk.EditorID = "MAG_ResearchPerk" + nameStripped;
+                    perk.Name = name + " Research Perk";
+                    perk.Playable = true;
+                    perk.Hidden = true;
+                    perk.Level = 0;
+                    perk.NumRanks = 1;
+                    Console.WriteLine($"    Generated perk for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+
+                    // Recipe logic
+                    recipe.EditorID = "MAG_RecipeScroll" + nameStripped;
+                    recipe.CreatedObject = scroll.ToNullableLink();
+                    recipe.CreatedObjectCount = recipeToUse.Item3;
+                    recipe.WorkbenchKeyword = scrollWorkbenchKywd;
+                    var hasPerkCondData = new HasPerkConditionData();
+                    hasPerkCondData.Perk.Link.SetTo(perk);
+                    Condition hasPerk = new ConditionFloat
+                    {
+                        CompareOperator = CompareOperator.EqualTo,
+                        ComparisonValue = 1.0f,
+                        Data = hasPerkCondData
+                    };
+                    recipe.Items = new ExtendedList<ContainerEntry>
                     {
                         new()
                         {
-                            Name = "MAG_ResearchItem_Script",
-                            Properties = new ExtendedList<ScriptProperty>
+                            Item = new ContainerItem
                             {
-                                attachedBook, craftingPerk
+                                Item = ink,
+                                Count = recipeToUse.Item2
+                            }
+                        },
+                        new()
+                        {
+                            Item = new ContainerItem
+                            {
+                                Item = paper,
+                                Count = recipeToUse.Item1
                             }
                         }
-                    }
-                };
-                Console.WriteLine($"    Generated research notes for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+                    };
+                    recipe.Conditions.Add(hasPerk);
+                    Console.WriteLine($"    Generated recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
 
-                // Perk logic
-                perk.EditorID = "MAG_ResearchPerk" + nameStripped;
-                perk.Name = name + " Research Perk";
-                perk.Playable = true;
-                perk.Hidden = true;
-                perk.Level = 0;
-                perk.NumRanks = 1;
-                Console.WriteLine($"    Generated perk for {scroll.Name} (0x{scroll.FormKey.ID:X})");
-
-                // Recipe logic
-                recipe.EditorID = "MAG_RecipeScroll" + nameStripped;
-                recipe.CreatedObject = scroll.ToNullableLink();
-                recipe.CreatedObjectCount = recipeToUse.Item3;
-                recipe.WorkbenchKeyword = scrollWorkbenchKywd;
-                var hasPerkCondData = new HasPerkConditionData();
-                hasPerkCondData.Perk.Link.SetTo(perk);
-                Condition hasPerk = new ConditionFloat
-                {
-                    CompareOperator = CompareOperator.EqualTo,
-                    ComparisonValue = 1.0f,
-                    Data = hasPerkCondData
-                };
-                recipe.Items = new ExtendedList<ContainerEntry>
-                {
-                    new()
+                    // Breakdown recipe logic
+                    breakdownRecipe.EditorID = "MAG_BreakdownRecipeScroll" + nameStripped;
+                    breakdownRecipe.CreatedObject = book.ToNullableLink();
+                    breakdownRecipe.CreatedObjectCount = 1;
+                    breakdownRecipe.WorkbenchKeyword = scrollWorkbenchKywd;
+                    var hasScrollsCondData = new GetItemCountConditionData();
+                    hasScrollsCondData.ItemOrList.Link.SetTo(scroll);
+                    Condition hasScrolls = new ConditionFloat
                     {
-                        Item = new ContainerItem
-                        {
-                            Item = ink,
-                            Count = recipeToUse.Item2
-                        }
-                    },
-                    new()
+                        CompareOperator = CompareOperator.GreaterThanOrEqualTo,
+                        ComparisonValue = 1.0f,
+                        Data = hasScrollsCondData
+                    };
+                    Condition noPerk = new ConditionFloat
                     {
-                        Item = new ContainerItem
-                        {
-                            Item = paper,
-                            Count = recipeToUse.Item1
-                        }
-                    }
-                };
-                recipe.Conditions.Add(hasPerk);
-                Console.WriteLine($"    Generated recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
-
-                // Breakdown recipe logic
-                breakdownRecipe.EditorID = "MAG_BreakdownRecipeScroll" + nameStripped;
-                breakdownRecipe.CreatedObject = book.ToNullableLink();
-                breakdownRecipe.CreatedObjectCount = 1;
-                breakdownRecipe.WorkbenchKeyword = scrollWorkbenchKywd;
-                var hasScrollsCondData = new GetItemCountConditionData();
-                hasScrollsCondData.ItemOrList.Link.SetTo(scroll);
-                Condition hasScrolls = new ConditionFloat
-                {
-                    CompareOperator = CompareOperator.GreaterThanOrEqualTo,
-                    ComparisonValue = 1.0f,
-                    Data = hasScrollsCondData
-                };
-                Condition noPerk = new ConditionFloat
-                {
-                    CompareOperator = CompareOperator.EqualTo,
-                    ComparisonValue = 0.0f,
-                    Data = hasPerkCondData
-                };
-                breakdownRecipe.Items = new ExtendedList<ContainerEntry>
-                {
-                    new()
+                        CompareOperator = CompareOperator.EqualTo,
+                        ComparisonValue = 0.0f,
+                        Data = hasPerkCondData
+                    };
+                    breakdownRecipe.Items = new ExtendedList<ContainerEntry>
                     {
-                        Item = new ContainerItem
+                        new()
                         {
-                            Item = scroll.ToLink(),
-                            Count = 1
+                            Item = new ContainerItem
+                            {
+                                Item = scroll.ToLink(),
+                                Count = 1
+                            }
                         }
-                    }
-                };
-                breakdownRecipe.Conditions.Add(noPerk);
-                breakdownRecipe.Conditions.Add(hasScrolls);
-                Console.WriteLine($"    Generated breakdown recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
-            }
+                    };
+                    breakdownRecipe.Conditions.Add(noPerk);
+                    breakdownRecipe.Conditions.Add(hasScrolls);
+                    Console.WriteLine($"    Generated breakdown recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+                }
 
             var staffEnchCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.ObjectEffect().WinningOverrides()
-                : state.LoadOrder.TryGetValue(_modToPatch)!.Mod!.ObjectEffects;
+                : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.ObjectEffects;
 
             // Staff enchantments
-            foreach (var ench in staffEnchCollection)
-            {
-                if (!ench.EditorID!.Contains("Staff") || ench.EditorID.Contains("MAG_")) continue;
-
-                Console.WriteLine($"Processing staff enchantment: {ench.Name} (0x{ench.FormKey.ID:X})");
-
-                var patched = state.PatchMod.ObjectEffects.GetOrAddAsOverride(ench);
-                var max = 0.0f;
-                uint costliestEffectLevel = 0;
-
-                foreach (var effect in ench.Effects)
+            if (staffEnchCollection != null)
+                foreach (var ench in staffEnchCollection)
                 {
-                    var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
-                    if (!(record.BaseCost > max)) continue;
-                    max = record.BaseCost;
-                    costliestEffectLevel = record.MinimumSkillLevel;
-                }
+                    if (!ench.EditorID!.Contains("Staff") || ench.EditorID.Contains("MAG_")) continue;
 
-                patched.EnchantmentAmount = costliestEffectLevel switch
-                {
-                    < 25 => 20,
-                    >= 25 and < 50 => 30,
-                    >= 50 and < 75 => 60,
-                    >= 75 and < 100 => 120,
-                    >= 100 => 250
-                };
+                    Console.WriteLine($"Processing staff enchantment: {ench.Name} (0x{ench.FormKey.ID:X})");
 
-                patched.EnchantmentCost = Convert.ToUInt32(patched.EnchantmentAmount);
-
-                if (patched is {CastType: CastType.Concentration, TargetType: TargetType.Aimed})
-                    patched.Effects.Add(conc);
-
-                if (patched.EnchantmentAmount == ench.EnchantmentAmount)
-                    state.PatchMod.Remove(patched);
-
-                Console.WriteLine($"Finished processing {ench.Name} (0x{ench.FormKey.ID:X})");
-            }
-
-            var staffCollection = _settings.Value.PatchFullLoadOrder
-                ? state.LoadOrder.PriorityOrder.Weapon().WinningOverrides()
-                : state.LoadOrder.TryGetValue(_modToPatch)!.Mod!.Weapons;
-
-            // Staves
-            foreach (var staff in staffCollection)
-            {
-                if (!staff.HasKeyword(staffKywd) || staff.EditorID!.Contains("MAG_") || staff.EditorID.Contains("Template")) continue;
-
-                var patched = state.PatchMod.Weapons.GetOrAddAsOverride(staff);
-
-                state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
-                var max = 0.0f;
-                uint costliestEffectLevel = 0;
-
-                if (ench is null) continue;
-
-                Console.WriteLine($"Processing staff: {staff.Name} (0x{staff.FormKey.ID:X})");
-
-                foreach (var effect in ench.Effects)
-                {
-                    var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
-                    if (!(record.BaseCost > max)) continue;
-                    max = record.BaseCost;
-                    costliestEffectLevel = record.MinimumSkillLevel;
-                }
-
-                patched.EnchantmentAmount = costliestEffectLevel switch
-                {
-                    < 25 => 500,
-                    >= 25 and < 50 => 750,
-                    >= 50 and < 75 => 1500,
-                    >= 75 and < 100 => 3000,
-                    >= 100 => 5000
-                };
-
-                if (patched.EnchantmentAmount == staff.EnchantmentAmount)
-                    state.PatchMod.Remove(patched);
-
-                Console.WriteLine($"Finished processing staff: {staff.Name} (0x{staff.FormKey.ID:X})");
-            }
-
-            var staffRecipeCollection = _settings.Value.PatchFullLoadOrder
-                ? state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides()
-                : state.LoadOrder.TryGetValue(_modToPatch)!.Mod!.ConstructibleObjects;
-
-            // Staff recipes
-            foreach (var staffRecipe in staffRecipeCollection)
-            {
-                var edid = staffRecipe.EditorID!;
-                if (edid.Contains("MAG_") || !staffRecipe.WorkbenchKeyword.Equals(vanillaStaffWorkbenchKywd)) continue;
-
-                if (state.LinkCache.TryResolve<IWeaponGetter>(staffRecipe.CreatedObject.FormKey, out var staff))
-                {
-                    Console.WriteLine($"Processing recipe for {staff.Name}: (0x{staffRecipe.FormKey.ID:X})");
-
-                    var newRecipe = state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(staffRecipe);
-
-                    newRecipe.EditorID += "Alt";
-                    newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
-                    newRecipe.Items!.RemoveAt(0);
-
-                    var ench = state.LinkCache.Resolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey);
+                    var patched = state.PatchMod.ObjectEffects.GetOrAddAsOverride(ench);
                     var max = 0.0f;
                     uint costliestEffectLevel = 0;
 
@@ -428,40 +340,140 @@ namespace SorcererPatcher
                         costliestEffectLevel = record.MinimumSkillLevel;
                     }
 
-                    var recipes = new List<(IFormLink<ISoulGemGetter>, int)>
+                    patched.EnchantmentAmount = costliestEffectLevel switch
                     {
-                        (soulGemCommon, 1),
-                        (soulGemGreater, 1),
-                        (soulGemGrand, 1),
-                        (soulGemGrand, 2),
-                        (soulGemGrand, 3),
+                        < 25 => 20,
+                        >= 25 and < 50 => 30,
+                        >= 50 and < 75 => 60,
+                        >= 75 and < 100 => 120,
+                        >= 100 => 250
                     };
 
-                    var recipeToUse = costliestEffectLevel switch
-                    {
-                        < 25 => recipes[0],
-                        >= 25 and < 50 => recipes[1],
-                        >= 50 and < 75 => recipes[2],
-                        >= 75 and < 100 => recipes[3],
-                        >= 100 => recipes[4]
-                    };
+                    patched.EnchantmentCost = Convert.ToUInt32(patched.EnchantmentAmount);
 
-                    newRecipe.Items.Add(new ContainerEntry
-                    {
-                        Item = new ContainerItem
-                        {
-                            Item = recipeToUse.Item1,
-                            Count = recipeToUse.Item2
-                        }
-                    });
+                    if (patched is { CastType: CastType.Concentration, TargetType: TargetType.Aimed })
+                        patched.Effects.Add(conc);
 
-                    Console.WriteLine($"Finished processing recipe for {staff.Name}: (0x{staffRecipe.FormKey.ID:X})");
+                    if (patched.EnchantmentAmount == ench.EnchantmentAmount)
+                        state.PatchMod.Remove(patched);
+
+                    Console.WriteLine($"Finished processing {ench.Name} (0x{ench.FormKey.ID:X})");
                 }
-                else
+
+            var staffCollection = _settings.Value.PatchFullLoadOrder
+                ? state.LoadOrder.PriorityOrder.Weapon().WinningOverrides()
+                : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.Weapons;
+
+            // Staves
+            if (staffCollection != null)
+                foreach (var staff in staffCollection)
                 {
-                    Console.WriteLine($"ERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
+                    if (!staff.HasKeyword(staffKywd) || staff.EditorID!.Contains("MAG_") ||
+                        staff.EditorID.Contains("Template")) continue;
+
+                    var patched = state.PatchMod.Weapons.GetOrAddAsOverride(staff);
+
+                    state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
+                    var max = 0.0f;
+                    uint costliestEffectLevel = 0;
+
+                    if (ench is null) continue;
+
+                    Console.WriteLine($"Processing staff: {staff.Name} (0x{staff.FormKey.ID:X})");
+
+                    foreach (var effect in ench.Effects)
+                    {
+                        var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                        if (!(record.BaseCost > max)) continue;
+                        max = record.BaseCost;
+                        costliestEffectLevel = record.MinimumSkillLevel;
+                    }
+
+                    patched.EnchantmentAmount = costliestEffectLevel switch
+                    {
+                        < 25 => 500,
+                        >= 25 and < 50 => 750,
+                        >= 50 and < 75 => 1500,
+                        >= 75 and < 100 => 3000,
+                        >= 100 => 5000
+                    };
+
+                    if (patched.EnchantmentAmount == staff.EnchantmentAmount)
+                        state.PatchMod.Remove(patched);
+
+                    Console.WriteLine($"Finished processing staff: {staff.Name} (0x{staff.FormKey.ID:X})");
                 }
-            }
+
+            var staffRecipeCollection = _settings.Value.PatchFullLoadOrder
+                ? state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides()
+                : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.ConstructibleObjects;
+
+            // Staff recipes
+            if (staffRecipeCollection != null)
+                foreach (var staffRecipe in staffRecipeCollection)
+                {
+                    var edid = staffRecipe.EditorID!;
+                    if (edid.Contains("MAG_") ||
+                        !staffRecipe.WorkbenchKeyword.Equals(vanillaStaffWorkbenchKywd)) continue;
+
+                    if (state.LinkCache.TryResolve<IWeaponGetter>(staffRecipe.CreatedObject.FormKey, out var staff))
+                    {
+                        Console.WriteLine($"Processing recipe for {staff.Name}: (0x{staffRecipe.FormKey.ID:X})");
+
+                        var newRecipe = state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(staffRecipe);
+
+                        newRecipe.EditorID += "Alt";
+                        newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
+                        newRecipe.Items!.RemoveAt(0);
+
+                        var ench = state.LinkCache.Resolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey);
+                        var max = 0.0f;
+                        uint costliestEffectLevel = 0;
+
+                        foreach (var effect in ench.Effects)
+                        {
+                            var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                            if (!(record.BaseCost > max)) continue;
+                            max = record.BaseCost;
+                            costliestEffectLevel = record.MinimumSkillLevel;
+                        }
+
+                        var recipes = new List<(IFormLink<ISoulGemGetter>, int)>
+                        {
+                            (soulGemCommon, 1),
+                            (soulGemGreater, 1),
+                            (soulGemGrand, 1),
+                            (soulGemGrand, 2),
+                            (soulGemGrand, 3),
+                        };
+
+                        var recipeToUse = costliestEffectLevel switch
+                        {
+                            < 25 => recipes[0],
+                            >= 25 and < 50 => recipes[1],
+                            >= 50 and < 75 => recipes[2],
+                            >= 75 and < 100 => recipes[3],
+                            >= 100 => recipes[4]
+                        };
+
+                        newRecipe.Items.Add(new ContainerEntry
+                        {
+                            Item = new ContainerItem
+                            {
+                                Item = recipeToUse.Item1,
+                                Count = recipeToUse.Item2
+                            }
+                        });
+
+                        Console.WriteLine(
+                            $"Finished processing recipe for {staff.Name}: (0x{staffRecipe.FormKey.ID:X})");
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            $"ERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
+                    }
+                }
         }
     }
 }
