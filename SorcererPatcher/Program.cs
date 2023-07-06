@@ -11,6 +11,8 @@ namespace SorcererPatcher
     {
         [SettingName("Patch against entire load order")]
         public bool PatchFullLoadOrder = true;
+        [SettingName("Apply magic school keywords to staves")]
+        public bool ApplyStaffKeywords = false;
         [SettingName("Patch against a single mod (e.g.: Sorcerer.esp)")]
         public string PatchSingleMod = "";
     }
@@ -49,10 +51,14 @@ namespace SorcererPatcher
                 _modToPatch = ModKey.FromNameAndExtension(_settings.Value.PatchSingleMod);
             }
 
-            var scrollWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_TableScrollEnchanter").ToNullableLink();
-            var staffWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_TableStaffEnchanter").ToNullableLink();
-            var vanillaStaffWorkbenchKywd = state.LinkCache.Resolve<IKeywordGetter>("DLC2StaffEnchanter").ToNullableLink();
-            var scrollResearchKywd = state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollResearchNotes").ToNullableLink();
+            var scrollWorkbenchKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_TableScrollEnchanter").ToNullableLink();
+            var staffWorkbenchKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_TableStaffEnchanter").ToNullableLink();
+            var vanillaStaffWorkbenchKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("DLC2StaffEnchanter").ToNullableLink();
+            var scrollResearchKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollResearchNotes").ToNullableLink();
             var soulGemCommon = state.LinkCache.Resolve<ISoulGemGetter>("SoulGemCommonFilled").ToNullableLink();
             var soulGemGreater = state.LinkCache.Resolve<ISoulGemGetter>("SoulGemGreaterFilled").ToNullableLink();
             var soulGemGrand = state.LinkCache.Resolve<ISoulGemGetter>("SoulGemGrandFilled").ToNullableLink();
@@ -72,6 +78,16 @@ namespace SorcererPatcher
                 state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeIllusion").ToNullableLink();
             var scrollRestorationKywd =
                 state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeRestoration").ToNullableLink();
+            var staffAlterationKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeAlteration").ToNullableLink();
+            var staffConjurationKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeConjuration").ToNullableLink();
+            var staffDestructionKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeDestruction").ToNullableLink();
+            var staffIllusionKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeIllusion").ToNullableLink();
+            var staffRestorationKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeRestoration").ToNullableLink();
             var magicSkills = new HashSet<ActorValue>
             {
                 ActorValue.Alteration, ActorValue.Conjuration, ActorValue.Destruction, ActorValue.Illusion,
@@ -95,6 +111,7 @@ namespace SorcererPatcher
 
             // Scrolls
             if (scrollCollection != null)
+            {
                 foreach (var scroll in scrollCollection)
                 {
                     var sName = scroll.Name!.ToString()!;
@@ -315,6 +332,7 @@ namespace SorcererPatcher
                     breakdownRecipe.Conditions.Add(hasScrolls);
                     Console.WriteLine($"    Generated breakdown recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
                 }
+            }
 
             var staffEnchCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.ObjectEffect().WinningOverrides()
@@ -322,6 +340,7 @@ namespace SorcererPatcher
 
             // Staff enchantments
             if (staffEnchCollection != null)
+            {
                 foreach (var ench in staffEnchCollection)
                 {
                     if (!ench.EditorID!.Contains("Staff") || ench.EditorID.Contains("MAG_")) continue;
@@ -359,6 +378,7 @@ namespace SorcererPatcher
 
                     Console.WriteLine($"Finished processing {ench.Name} (0x{ench.FormKey.ID:X})");
                 }
+            }
 
             var staffCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.Weapon().WinningOverrides()
@@ -366,6 +386,7 @@ namespace SorcererPatcher
 
             // Staves
             if (staffCollection != null)
+            {
                 foreach (var staff in staffCollection)
                 {
                     if (!staff.HasKeyword(staffKywd) || staff.EditorID!.Contains("MAG_") ||
@@ -376,6 +397,7 @@ namespace SorcererPatcher
                     state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
                     var max = 0.0f;
                     uint costliestEffectLevel = 0;
+                    ActorValue costliestEffectSkill = new();
 
                     if (ench is null) continue;
 
@@ -387,6 +409,8 @@ namespace SorcererPatcher
                         if (!(record.BaseCost > max)) continue;
                         max = record.BaseCost;
                         costliestEffectLevel = record.MinimumSkillLevel;
+                        if (magicSkills.Contains(record.MagicSkill))
+                            costliestEffectSkill = record.MagicSkill;
                     }
 
                     patched.EnchantmentAmount = costliestEffectLevel switch
@@ -398,11 +422,36 @@ namespace SorcererPatcher
                         >= 100 => 5000
                     };
 
+                    if (_settings.Value.ApplyStaffKeywords)
+                    {
+                        patched.Keywords ??= new();
+
+                        switch (costliestEffectSkill)
+                        {
+                            case ActorValue.Alteration:
+                                patched.Keywords.Add(staffAlterationKywd);
+                                break;
+                            case ActorValue.Conjuration:
+                                patched.Keywords.Add(staffConjurationKywd);
+                                break;
+                            case ActorValue.Destruction:
+                                patched.Keywords.Add(staffDestructionKywd);
+                                break;
+                            case ActorValue.Illusion:
+                                patched.Keywords.Add(staffIllusionKywd);
+                                break;
+                            case ActorValue.Restoration:
+                                patched.Keywords.Add(staffRestorationKywd);
+                                break;
+                        }
+                    }
+
                     if (patched.EnchantmentAmount == staff.EnchantmentAmount)
                         state.PatchMod.Remove(patched);
 
                     Console.WriteLine($"Finished processing staff: {staff.Name} (0x{staff.FormKey.ID:X})");
                 }
+            }
 
             var staffRecipeCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides()
@@ -410,6 +459,7 @@ namespace SorcererPatcher
 
             // Staff recipes
             if (staffRecipeCollection != null)
+            {
                 foreach (var staffRecipe in staffRecipeCollection)
                 {
                     var edid = staffRecipe.EditorID!;
@@ -474,6 +524,10 @@ namespace SorcererPatcher
                             $"ERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
                     }
                 }
+            }
+
+            if (!_settings.Value.PatchFullLoadOrder)
+                state.PatchMod.ModHeader.Flags = SkyrimModHeader.HeaderFlag.LightMaster;
         }
     }
 }
