@@ -59,6 +59,16 @@ namespace SorcererPatcher
             var paper = state.LinkCache.Resolve<IMiscItemGetter>("MAG_ScrollPaper").ToNullableLink();
             var concEffect = state.LinkCache.Resolve<IMagicEffectGetter>("MAG_StaffEnchConcAimed").ToNullableLink();
             var staffKywd = state.LinkCache.Resolve<IKeywordGetter>("WeapTypeStaff").ToNullableLink();
+            var scrollAlterationKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeAlteration").ToNullableLink();
+            var scrollConjurationKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeConjuration").ToNullableLink();
+            var scrollDestructionKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeDestruction").ToNullableLink();
+            var scrollIllusionywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeIllusion").ToNullableLink();
+            var scrollRestorationKywd =
+                state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeRestoration").ToNullableLink();
             var conc = new Effect()
             {
                 BaseEffect = concEffect,
@@ -87,6 +97,7 @@ namespace SorcererPatcher
                 // Determine recipe based on minimum skill level of costliest magic effect
                 var max = 0.0f;
                 uint costliestEffectLevel = 0;
+                ActorValue costliestEffectSkill = new();
 
                 // Find minimum skill level of magic effect with the highest base cost
                 foreach (var effect in scroll.Effects)
@@ -95,6 +106,7 @@ namespace SorcererPatcher
                     if (!(record.BaseCost > max)) continue;
                     max = record.BaseCost;
                     costliestEffectLevel = record.MinimumSkillLevel;
+                    costliestEffectSkill = record.MagicSkill;
                 }
 
                 // Rectify scroll value
@@ -109,8 +121,28 @@ namespace SorcererPatcher
                     >= 100 => 160
                 };
 
+                // Add scroll type keyword
+                switch (costliestEffectSkill)
+                {
+                    case ActorValue.Alteration:
+                        patched.Keywords!.Add(scrollAlterationKywd);
+                        break;
+                    case ActorValue.Conjuration:
+                        patched.Keywords!.Add(scrollConjurationKywd);
+                        break;
+                    case ActorValue.Destruction:
+                        patched.Keywords!.Add(scrollDestructionKywd);
+                        break;
+                    case ActorValue.Illusion:
+                        patched.Keywords!.Add(scrollIllusionywd);
+                        break;
+                    case ActorValue.Restoration:
+                        patched.Keywords!.Add(scrollRestorationKywd);
+                        break;
+                }
+
                 // Remove scroll from patch if record is unchanged
-                if (patched.Value == prevValue)
+                if (patched.Equals(scroll))
                     state.PatchMod.Remove(scroll);
 
                 var recipes = new List<(int, int, ushort)> // (scroll paper, enchanted ink, # of scrolls created)
