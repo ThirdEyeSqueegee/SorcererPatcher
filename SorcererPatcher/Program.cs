@@ -69,6 +69,12 @@ namespace SorcererPatcher
                 state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeIllusion").ToNullableLink();
             var scrollRestorationKywd =
                 state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeRestoration").ToNullableLink();
+            var magicSkills = new HashSet<ActorValue>
+            {
+                ActorValue.Alteration, ActorValue.Conjuration, ActorValue.Destruction, ActorValue.Illusion,
+                ActorValue.Restoration
+            };
+
             var conc = new Effect()
             {
                 BaseEffect = concEffect,
@@ -92,7 +98,7 @@ namespace SorcererPatcher
 
                 if (edid.Contains("MAG_") || sName.Contains("Shalidor") || sName.Contains("J'zargo") || sName.Contains("Spider")) continue;
 
-                Console.WriteLine($"Processing scroll: {scroll.Name}");
+                Console.WriteLine($"Processing scroll: {scroll.Name} ({scroll.FormKey.ID:X})");
 
                 // Determine recipe based on minimum skill level of costliest magic effect
                 var max = 0.0f;
@@ -106,7 +112,8 @@ namespace SorcererPatcher
                     if (!(record.BaseCost > max)) continue;
                     max = record.BaseCost;
                     costliestEffectLevel = record.MinimumSkillLevel;
-                    costliestEffectSkill = record.MagicSkill;
+                    if (magicSkills.Contains(record.MagicSkill))
+                        costliestEffectSkill = record.MagicSkill;
                 }
 
                 // Rectify scroll value
@@ -120,24 +127,24 @@ namespace SorcererPatcher
                     >= 75 and < 100 => 100,
                     >= 100 => 160
                 };
+                if (patched.Keywords == null) patched.Keywords = new();
 
-                // Add scroll type keyword
                 switch (costliestEffectSkill)
                 {
                     case ActorValue.Alteration:
-                        patched.Keywords!.Add(scrollAlterationKywd);
+                        patched.Keywords.Add(scrollAlterationKywd);
                         break;
                     case ActorValue.Conjuration:
-                        patched.Keywords!.Add(scrollConjurationKywd);
+                        patched.Keywords.Add(scrollConjurationKywd);
                         break;
                     case ActorValue.Destruction:
-                        patched.Keywords!.Add(scrollDestructionKywd);
+                        patched.Keywords.Add(scrollDestructionKywd);
                         break;
                     case ActorValue.Illusion:
-                        patched.Keywords!.Add(scrollIllusionywd);
+                        patched.Keywords.Add(scrollIllusionywd);
                         break;
                     case ActorValue.Restoration:
-                        patched.Keywords!.Add(scrollRestorationKywd);
+                        patched.Keywords.Add(scrollRestorationKywd);
                         break;
                 }
 
@@ -223,7 +230,7 @@ namespace SorcererPatcher
                         }
                     }
                 };
-                Console.WriteLine($"    Generated research notes");
+                Console.WriteLine($"    Generated research notes for {scroll.Name} ({scroll.FormKey.ID:X})");
 
                 // Perk logic
                 perk.EditorID = "MAG_ResearchPerk" + nameStripped;
@@ -232,7 +239,7 @@ namespace SorcererPatcher
                 perk.Hidden = true;
                 perk.Level = 0;
                 perk.NumRanks = 1;
-                Console.WriteLine($"    Generated perk");
+                Console.WriteLine($"    Generated perk for {scroll.Name} ({scroll.FormKey.ID:X})");
 
                 // Recipe logic
                 recipe.EditorID = "MAG_RecipeScroll" + nameStripped;
@@ -267,7 +274,7 @@ namespace SorcererPatcher
                     }
                 };
                 recipe.Conditions.Add(hasPerk);
-                Console.WriteLine($"    Generated recipe");
+                Console.WriteLine($"    Generated recipe for {scroll.Name} ({scroll.FormKey.ID:X})");
 
                 // Breakdown recipe logic
                 breakdownRecipe.EditorID = "MAG_BreakdownRecipeScroll" + nameStripped;
@@ -301,7 +308,7 @@ namespace SorcererPatcher
                 };
                 breakdownRecipe.Conditions.Add(noPerk);
                 breakdownRecipe.Conditions.Add(hasScrolls);
-                Console.WriteLine($"    Generated breakdown recipe");
+                Console.WriteLine($"    Generated breakdown recipe for {scroll.Name} ({scroll.FormKey.ID:X})");
             }
 
             var staffEnchCollection = _settings.Value.PatchFullLoadOrder
@@ -313,7 +320,7 @@ namespace SorcererPatcher
             {
                 if (!ench.EditorID!.Contains("Staff") || ench.EditorID.Contains("MAG_")) continue;
 
-                Console.WriteLine($"Processing staff enchantment: {ench.Name}");
+                Console.WriteLine($"Processing staff enchantment: {ench.Name} ({ench.FormKey.ID:X})");
 
                 var patched = state.PatchMod.ObjectEffects.GetOrAddAsOverride(ench);
                 var max = 0.0f;
@@ -341,7 +348,7 @@ namespace SorcererPatcher
                 if (patched is {CastType: CastType.Concentration, TargetType: TargetType.Aimed})
                     patched.Effects.Add(conc);
 
-                Console.WriteLine($"Finished processing {patched.Name}");
+                Console.WriteLine($"Finished processing {ench.Name} ({ench.FormKey.ID:X})");
             }
 
             var staffCollection = _settings.Value.PatchFullLoadOrder
@@ -361,7 +368,7 @@ namespace SorcererPatcher
 
                 if (ench is null) continue;
 
-                Console.WriteLine($"Processing staff: {staff.Name}");
+                Console.WriteLine($"Processing staff: {staff.Name} ({staff.FormKey.ID:X})");
 
                 foreach (var effect in ench.Effects)
                 {
@@ -383,7 +390,7 @@ namespace SorcererPatcher
                 if (patched.Equals(staff))
                     state.PatchMod.Remove(patched);
 
-                Console.WriteLine($"Finished processing staff: {staff.Name}");
+                Console.WriteLine($"Finished processing staff: {staff.Name} ({staff.FormKey.ID:X})");
             }
 
             var staffRecipeCollection = _settings.Value.PatchFullLoadOrder
@@ -398,7 +405,7 @@ namespace SorcererPatcher
 
                 if (state.LinkCache.TryResolve<IWeaponGetter>(staffRecipe.CreatedObject.FormKey, out var staff))
                 {
-                    Console.WriteLine($"Processing staff: {staff.Name}");
+                    Console.WriteLine($"Processing recipe for {staff.Name}: ({staffRecipe.FormKey.ID:X})");
 
                     var newRecipe = state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(staffRecipe);
 
@@ -444,10 +451,12 @@ namespace SorcererPatcher
                             Count = recipeToUse.Item2
                         }
                     });
+
+                    Console.WriteLine($"Finished processing recipe for {staff.Name}: ({staffRecipe.FormKey.ID:X})");
                 }
                 else
                 {
-                    Console.WriteLine($"ERROR: Failed to process recipe {staffRecipe.EditorID}");
+                    Console.WriteLine($"ERROR: Failed to process recipe for {staffRecipe.EditorID} ({staffRecipe.FormKey.ID:X})");
                 }
             }
         }
