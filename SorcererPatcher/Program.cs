@@ -114,11 +114,11 @@ namespace SorcererPatcher
             {
                 foreach (var scroll in scrollCollection)
                 {
-                    var sName = scroll.Name!.ToString()!;
-                    var edid = scroll.EditorID!;
+                    var sName = scroll.Name?.ToString();
+                    var edid = scroll.EditorID;
 
-                    if (edid.Contains("MAG_") || sName.Contains("Shalidor") || sName.Contains("J'zargo") ||
-                        sName.Contains("Spider")) continue;
+                    if (sName != null && edid != null && (edid.Contains("MAG_") || sName.Contains("Shalidor") || sName.Contains("J'zargo") ||
+                                                          sName.Contains("Spider"))) continue;
 
                     Console.WriteLine($"Processing scroll: {scroll.Name} (0x{scroll.FormKey.ID:X})");
 
@@ -149,7 +149,7 @@ namespace SorcererPatcher
                         >= 100 => 160
                     };
 
-                    patched.Keywords ??= new();
+                    patched.Keywords ??= new ExtendedList<IFormLinkGetter<IKeywordGetter>>();
 
                     switch (costliestEffectSkill)
                     {
@@ -197,8 +197,8 @@ namespace SorcererPatcher
                     var recipe = state.PatchMod.ConstructibleObjects.AddNew();
                     var breakdownRecipe = state.PatchMod.ConstructibleObjects.AddNew();
 
-                    var name = scroll.Name!.ToString()!.Replace("Scroll of the ", "").Replace("Scroll of ", "");
-                    var nameStripped = name.Replace(" ", "");
+                    var name = scroll.Name?.ToString()?.Replace("Scroll of the ", "").Replace("Scroll of ", "");
+                    var nameStripped = name?.Replace(" ", "");
 
                     // Book logic
                     book.EditorID = "MAG_ResearchNotes" + nameStripped;
@@ -214,7 +214,7 @@ namespace SorcererPatcher
                     };
                     book.PickUpSound = pickUpSound;
                     book.BookText = book.Name;
-                    book.Description = scroll.Name!.ToString()!.Contains("of the") switch
+                    book.Description = (scroll.Name != null && scroll.Name.ToString()!.Contains("of the")) switch
                     {
                         true => $"Allows you to craft Scrolls of the " + name + ".",
                         false => $"Allows you to craft Scrolls of " + name + "."
@@ -343,7 +343,7 @@ namespace SorcererPatcher
             {
                 foreach (var ench in staffEnchCollection)
                 {
-                    if (!ench.EditorID!.Contains("Staff") || ench.EditorID.Contains("MAG_")) continue;
+                    if (ench.EditorID != null && (!ench.EditorID.Contains("Staff") || ench.EditorID.Contains("MAG_"))) continue;
 
                     Console.WriteLine($"Processing staff enchantment: {ench.Name} (0x{ench.FormKey.ID:X})");
 
@@ -389,8 +389,8 @@ namespace SorcererPatcher
             {
                 foreach (var staff in staffCollection)
                 {
-                    if (!staff.HasKeyword(staffKywd) || staff.EditorID!.Contains("MAG_") ||
-                        staff.EditorID.Contains("Template")) continue;
+                    if (staff.EditorID != null && (!staff.HasKeyword(staffKywd) || staff.EditorID.Contains("MAG_") ||
+                                                   staff.EditorID.Contains("Template"))) continue;
 
                     var patched = state.PatchMod.Weapons.GetOrAddAsOverride(staff);
 
@@ -462,9 +462,9 @@ namespace SorcererPatcher
             {
                 foreach (var staffRecipe in staffRecipeCollection)
                 {
-                    var edid = staffRecipe.EditorID!;
-                    if (edid.Contains("MAG_") ||
-                        !staffRecipe.WorkbenchKeyword.Equals(vanillaStaffWorkbenchKywd)) continue;
+                    var edid = staffRecipe.EditorID;
+                    if (edid != null && (edid.Contains("MAG_") ||
+                                         !staffRecipe.WorkbenchKeyword.Equals(vanillaStaffWorkbenchKywd))) continue;
 
                     if (state.LinkCache.TryResolve<IWeaponGetter>(staffRecipe.CreatedObject.FormKey, out var staff))
                     {
@@ -474,7 +474,7 @@ namespace SorcererPatcher
 
                         newRecipe.EditorID += "Alt";
                         newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
-                        newRecipe.Items!.RemoveAt(0);
+                        newRecipe.Items?.RemoveAt(0);
 
                         var ench = state.LinkCache.Resolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey);
                         var max = 0.0f;
@@ -505,6 +505,8 @@ namespace SorcererPatcher
                             >= 75 and < 100 => recipes[3],
                             >= 100 => recipes[4]
                         };
+
+                        newRecipe.Items ??= new ExtendedList<ContainerEntry>();
 
                         newRecipe.Items.Add(new ContainerEntry
                         {
