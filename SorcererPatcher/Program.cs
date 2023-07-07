@@ -472,11 +472,16 @@ namespace SorcererPatcher
                     {
                         Console.WriteLine($"Processing recipe for {staff.Name}: (0x{staffRecipe.FormKey.ID:X})");
 
-                        var newRecipe = state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(staffRecipe);
+                        var newRecipe = state.PatchMod.ConstructibleObjects.AddNew();
+                        newRecipe.EditorID = staffRecipe.EditorID;
+                        newRecipe.Items = new ExtendedList<ContainerEntry>();
+                        if (staffRecipe.Items != null)
+                            foreach (var item in staffRecipe.Items)
+                                newRecipe.Items.Add(item.DeepCopy());
 
                         newRecipe.EditorID += "Alt";
                         newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
-                        newRecipe.Items?.RemoveAll(item => item.Item.Item.FormKey.Equals(heartStone.FormKey));
+                        newRecipe.Items.RemoveAll(item => item.Item.Item.FormKey.Equals(heartStone.FormKey));
 
                         var ench = state.LinkCache.Resolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey);
                         var max = 0.0f;
@@ -507,8 +512,6 @@ namespace SorcererPatcher
                             >= 75 and < 100 => recipes[3],
                             >= 100 => recipes[4]
                         };
-
-                        newRecipe.Items ??= new ExtendedList<ContainerEntry>();
 
                         newRecipe.Items.Add(new ContainerEntry
                         {
