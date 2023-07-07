@@ -480,7 +480,8 @@ namespace SorcererPatcher
                                 newRecipe.Items.Add(item.DeepCopy());
                         foreach (var cond in staffRecipe.Conditions)
                             newRecipe.Conditions.Add(cond.DeepCopy());
-                        newRecipe.CreatedObject.SetTo(newRecipe.CreatedObject);
+                        newRecipe.CreatedObject = new FormLinkNullable<IConstructibleGetter>();
+                        newRecipe.CreatedObject.SetTo(staffRecipe.CreatedObject);
                         newRecipe.CreatedObjectCount = staffRecipe.CreatedObjectCount;
 
                         newRecipe.EditorID += "Alt";
