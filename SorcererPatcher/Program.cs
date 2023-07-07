@@ -526,6 +526,34 @@ namespace SorcererPatcher
                 }
             }
 
+            if (_settings.Value.PatchFullLoadOrder)
+            {
+                // Soul gems
+                foreach (var soulgem in state.LoadOrder.PriorityOrder.SoulGem().WinningOverrides())
+                {
+                    Console.WriteLine($"Processing {soulgem.EditorID} (0x{soulgem.FormKey.ID:X})");
+                    var patched = state.PatchMod.SoulGems.GetOrAddAsOverride(soulgem);
+
+                    patched.Value = soulgem.EditorID switch
+                    {
+                        "SoulGemCommon" => 45,
+                        "SoulGemCommonFilled" => 135,
+                        "SoulGemGreater" => 75,
+                        "SoulGemGreaterFilled" => 265,
+                        "SoulGemGrand" => 160,
+                        "SoulGemGrandFilled" => 400,
+                        "SoulGemBlack" => 240,
+                        "SoulGemBlackFilled" => 600,
+                        _ => patched.Value
+                    };
+
+                    if (patched.Value == soulgem.Value)
+                        state.PatchMod.Remove(patched);
+
+                    Console.WriteLine($"Finished processing {soulgem.EditorID} (0x{soulgem.FormKey.ID:X})");
+                }
+            }
+
             if (!_settings.Value.PatchFullLoadOrder)
                 state.PatchMod.ModHeader.Flags = SkyrimModHeader.HeaderFlag.LightMaster;
         }
