@@ -105,6 +105,8 @@ namespace SorcererPatcher
                 }
             };
 
+            var heartStone = state.LinkCache.Resolve<IMiscItemGetter>("DLC2HeartStone").ToNullableLink();
+
             var scrollCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.Scroll().WinningOverrides()
                 : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.Scrolls;
@@ -474,7 +476,7 @@ namespace SorcererPatcher
 
                         newRecipe.EditorID += "Alt";
                         newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
-                        newRecipe.Items?.RemoveAt(0);
+                        newRecipe.Items?.RemoveAll(item => item.Item.Item.FormKey.Equals(heartStone.FormKey));
 
                         var ench = state.LinkCache.Resolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey);
                         var max = 0.0f;
