@@ -478,6 +478,10 @@ namespace SorcererPatcher
                         if (staffRecipe.Items != null)
                             foreach (var item in staffRecipe.Items)
                                 newRecipe.Items.Add(item.DeepCopy());
+                        foreach (var cond in staffRecipe.Conditions)
+                            newRecipe.Conditions.Add(cond.DeepCopy());
+                        newRecipe.CreatedObject.SetTo(newRecipe.CreatedObject);
+                        newRecipe.CreatedObjectCount = staffRecipe.CreatedObjectCount;
 
                         newRecipe.EditorID += "Alt";
                         newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
