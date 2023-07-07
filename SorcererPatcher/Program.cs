@@ -407,7 +407,8 @@ namespace SorcererPatcher
 
                     foreach (var effect in ench.Effects)
                     {
-                        var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                        state.LinkCache.TryResolve<IMagicEffectGetter>(effect.BaseEffect.FormKey, out var record);
+                        if (record == null) continue;
                         if (!(record.BaseCost > max)) continue;
                         max = record.BaseCost;
                         costliestEffectLevel = record.MinimumSkillLevel;
