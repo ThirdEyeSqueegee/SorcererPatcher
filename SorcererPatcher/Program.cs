@@ -406,12 +406,10 @@ namespace SorcererPatcher
                     foreach (var effect in ench.Effects)
                     {
                         state.LinkCache.TryResolve<IMagicEffectGetter>(effect.BaseEffect.FormKey, out var record);
-                        if (record == null) continue;
+                        if (record is null) continue;
                         if (!(record.BaseCost > max)) continue;
                         max = record.BaseCost;
                         costliestEffectLevel = record.MinimumSkillLevel;
-                        if (magicSkills.Contains(record.MagicSkill))
-                            costliestEffectSkill = record.MagicSkill;
                     }
 
                     patched.EnchantmentAmount = costliestEffectLevel switch
@@ -463,19 +461,23 @@ namespace SorcererPatcher
                         newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
                         newRecipe.Items.RemoveAll(item => item.Item.Item.FormKey.Equals(heartStone.FormKey));
 
-                        var ench = state.LinkCache.Resolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey);
+                        state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
                         var max = 0.0f;
                         uint costliestEffectLevel = 0;
 
-                        foreach (var effect in ench.Effects)
+                        if (ench != null)
                         {
-                            var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
-                            if (!(record.BaseCost > max)) continue;
-                            max = record.BaseCost;
-                            costliestEffectLevel = record.MinimumSkillLevel;
+                            foreach (var effect in ench.Effects)
+                            {
+                                var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                                if (!(record.BaseCost > max)) continue;
+                                max = record.BaseCost;
+                                costliestEffectLevel = record.MinimumSkillLevel;
+                            }
                         }
+                        else continue;
 
-                        var recipes = new List<(IFormLink<ISoulGemGetter>, int)>
+                            var recipes = new List<(IFormLink<ISoulGemGetter>, int)>
                         {
                             (soulGemCommon, 1),
                             (soulGemGreater, 1),
