@@ -76,22 +76,11 @@ namespace SorcererPatcher
                 state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeIllusion").ToNullableLink();
             var scrollRestorationKywd =
                 state.LinkCache.Resolve<IKeywordGetter>("MAG_ScrollTypeRestoration").ToNullableLink();
-            var staffAlterationKywd =
-                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeAlteration").ToNullableLink();
-            var staffConjurationKywd =
-                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeConjuration").ToNullableLink();
-            var staffDestructionKywd =
-                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeDestruction").ToNullableLink();
-            var staffIllusionKywd =
-                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeIllusion").ToNullableLink();
-            var staffRestorationKywd =
-                state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeRestoration").ToNullableLink();
             var magicSkills = new HashSet<ActorValue>
             {
                 ActorValue.Alteration, ActorValue.Conjuration, ActorValue.Destruction, ActorValue.Illusion,
                 ActorValue.Restoration
             };
-
             var conc = new Effect()
             {
                 BaseEffect = concEffect,
@@ -102,7 +91,6 @@ namespace SorcererPatcher
                     Area = 0
                 }
             };
-
             var heartStone = state.LinkCache.Resolve<IMiscItemGetter>("DLC2HeartStone").ToNullableLink();
 
             var scrollCollection = _settings.Value.PatchFullLoadOrder
@@ -130,7 +118,8 @@ namespace SorcererPatcher
                     // Find minimum skill level of magic effect with the highest base cost
                     foreach (var effect in scroll.Effects)
                     {
-                        var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                        state.LinkCache.TryResolve<IMagicEffectGetter>(effect.BaseEffect.FormKey, out var record);
+                        if (record is null) continue;
                         if (!(record.BaseCost > max)) continue;
                         max = record.BaseCost;
                         costliestEffectLevel = record.MinimumSkillLevel;
@@ -353,7 +342,8 @@ namespace SorcererPatcher
 
                     foreach (var effect in ench.Effects)
                     {
-                        var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                        state.LinkCache.TryResolve<IMagicEffectGetter>(effect.BaseEffect.FormKey, out var record);
+                        if (record is null) continue;
                         if (!(record.BaseCost > max)) continue;
                         max = record.BaseCost;
                         costliestEffectLevel = record.MinimumSkillLevel;
@@ -397,7 +387,6 @@ namespace SorcererPatcher
                     state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
                     var max = 0.0f;
                     uint costliestEffectLevel = 0;
-                    ActorValue costliestEffectSkill = new();
 
                     if (ench is null) continue;
 
@@ -469,7 +458,8 @@ namespace SorcererPatcher
                         {
                             foreach (var effect in ench.Effects)
                             {
-                                var record = state.LinkCache.Resolve<IMagicEffectGetter>(effect.BaseEffect.FormKey);
+                                state.LinkCache.TryResolve<IMagicEffectGetter>(effect.BaseEffect.FormKey, out var record);
+                                if (record is null) continue;
                                 if (!(record.BaseCost > max)) continue;
                                 max = record.BaseCost;
                                 costliestEffectLevel = record.MinimumSkillLevel;
