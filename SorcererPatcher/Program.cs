@@ -139,28 +139,34 @@ namespace SorcererPatcher
                     };
 
                     patched.Keywords ??= new ExtendedList<IFormLinkGetter<IKeywordGetter>>();
+                    var keywordsCount = patched.Keywords.Count;
 
                     switch (costliestEffectSkill)
                     {
                         case ActorValue.Alteration:
-                            patched.Keywords.Add(scrollAlterationKywd);
+                            if (!patched.Keywords.Contains(scrollAlterationKywd))
+                                patched.Keywords.Add(scrollAlterationKywd);
                             break;
                         case ActorValue.Conjuration:
-                            patched.Keywords.Add(scrollConjurationKywd);
+                            if (!patched.Keywords.Contains(scrollConjurationKywd))
+                                patched.Keywords.Add(scrollConjurationKywd);
                             break;
                         case ActorValue.Destruction:
-                            patched.Keywords.Add(scrollDestructionKywd);
+                            if (!patched.Keywords.Contains(scrollDestructionKywd))
+                                patched.Keywords.Add(scrollDestructionKywd);
                             break;
                         case ActorValue.Illusion:
-                            patched.Keywords.Add(scrollIllusionywd);
+                            if (!patched.Keywords.Contains(scrollIllusionywd))
+                                patched.Keywords.Add(scrollIllusionywd);
                             break;
                         case ActorValue.Restoration:
-                            patched.Keywords.Add(scrollRestorationKywd);
+                            if (!patched.Keywords.Contains(scrollRestorationKywd))
+                                patched.Keywords.Add(scrollRestorationKywd);
                             break;
                     }
 
                     // Remove scroll from patch if record is unchanged
-                    if (patched.Value == scroll.Value)
+                    if (patched.Value == scroll.Value && patched.Keywords.Count == keywordsCount)
                         state.PatchMod.Remove(patched);
 
                     var recipes = new List<(int, int, ushort)> // (scroll paper, enchanted ink, # of scrolls created)
@@ -467,7 +473,7 @@ namespace SorcererPatcher
                         }
                         else continue;
 
-                            var recipes = new List<(IFormLink<ISoulGemGetter>, int)>
+                        var recipes = new List<(IFormLink<ISoulGemGetter>, int)>
                         {
                             (soulGemCommon, 1),
                             (soulGemGreater, 1),
