@@ -543,6 +543,14 @@ namespace SorcererPatcher
                     Console.WriteLine($"    Finished processing {soulgem.EditorID} (0x{soulgem.FormKey.ID:X})");
                 }
             }
+
+            var recordCount = state.PatchMod.EnumerateMajorRecords().Count();
+
+            if (recordCount >= 2048) return;
+
+            Console.WriteLine($"Processed {recordCount} records");
+            Console.WriteLine("Generated patch has fewer than 2048 records. Adding ESL flag to plugin header...");
+            state.PatchMod.ModHeader.Flags = SkyrimModHeader.HeaderFlag.LightMaster;
         }
     }
 }
