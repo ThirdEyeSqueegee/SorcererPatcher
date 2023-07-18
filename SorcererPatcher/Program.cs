@@ -2,6 +2,7 @@ using Mutagen.Bethesda;
 using Mutagen.Bethesda.Synthesis;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.WPF.Reflection.Attributes;
 using Noggog;
 
@@ -93,11 +94,11 @@ namespace SorcererPatcher
             };
             var heartStone = state.LinkCache.Resolve<IMiscItemGetter>("DLC2HeartStone").ToNullableLink();
 
+            // Scrolls
             var scrollCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.Scroll().WinningOverrides()
                 : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.Scrolls;
 
-            // Scrolls
             if (scrollCollection != null)
             {
                 foreach (var scroll in scrollCollection)
@@ -323,11 +324,11 @@ namespace SorcererPatcher
                 }
             }
 
+            // Staff enchantments
             var staffEnchCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.ObjectEffect().WinningOverrides()
                 : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.ObjectEffects;
 
-            // Staff enchantments
             if (staffEnchCollection != null)
             {
                 foreach (var ench in staffEnchCollection)
@@ -366,15 +367,15 @@ namespace SorcererPatcher
                     if (patched.EnchantmentAmount == ench.EnchantmentAmount)
                         state.PatchMod.Remove(patched);
 
-                    Console.WriteLine($"Finished processing {ench.Name} (0x{ench.FormKey.ID:X})");
+                    Console.WriteLine($"    Finished processing {ench.Name} (0x{ench.FormKey.ID:X})");
                 }
             }
 
+            // Staves
             var staffCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.Weapon().WinningOverrides()
                 : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.Weapons;
 
-            // Staves
             if (staffCollection != null)
             {
                 foreach (var staff in staffCollection)
@@ -413,15 +414,17 @@ namespace SorcererPatcher
                     if (patched.EnchantmentAmount == staff.EnchantmentAmount)
                         state.PatchMod.Remove(patched);
 
-                    Console.WriteLine($"Finished processing staff: {staff.Name} (0x{staff.FormKey.ID:X})");
+                    Console.WriteLine($"    Finished processing {staff.Name} (0x{staff.FormKey.ID:X})");
                 }
             }
 
+            // Staff recipes
             var staffRecipeCollection = _settings.Value.PatchFullLoadOrder
                 ? state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides()
                 : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.ConstructibleObjects;
 
-            // Staff recipes
+            var errors = new List<IConstructibleObjectGetter>();
+
             if (staffRecipeCollection != null)
             {
                 foreach (var staffRecipe in staffRecipeCollection)
@@ -495,13 +498,21 @@ namespace SorcererPatcher
                         });
 
                         Console.WriteLine(
-                            $"Finished processing recipe for {staff.Name}: (0x{staffRecipe.FormKey.ID:X})");
+                            $"  Finished processing recipe for {staff.Name}: (0x{staffRecipe.FormKey.ID:X})");
                     }
                     else
                     {
                         Console.WriteLine(
-                            $"ERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
+                            $"  ERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
+                        errors.Add(staffRecipe);
                     }
+                }
+
+                if (errors.Count > 0)
+                {
+                    Console.WriteLine($"Failed to process {errors.Count} staff recipes: ");
+                    foreach (var error in errors)
+                        Console.WriteLine($"    {error.EditorID} (0x{error.FormKey.ID:X})");
                 }
             }
 
@@ -529,12 +540,17 @@ namespace SorcererPatcher
                     if (patched.Value == soulgem.Value)
                         state.PatchMod.Remove(patched);
 
-                    Console.WriteLine($"Finished processing {soulgem.EditorID} (0x{soulgem.FormKey.ID:X})");
+                    Console.WriteLine($"    Finished processing {soulgem.EditorID} (0x{soulgem.FormKey.ID:X})");
                 }
             }
 
-            if (!_settings.Value.PatchFullLoadOrder)
-                state.PatchMod.ModHeader.Flags = SkyrimModHeader.HeaderFlag.LightMaster;
+            var recordCount = state.PatchMod.EnumerateMajorRecords().Count();
+
+            if (recordCount >= 2048) return;
+
+            Console.WriteLine($"Processed {recordCount} records");
+            Console.WriteLine("Generated patch has fewer than 2048 records. Adding ESL flag to plugin header...");
+            state.PatchMod.ModHeader.Flags = SkyrimModHeader.HeaderFlag.LightMaster;
         }
     }
 }
